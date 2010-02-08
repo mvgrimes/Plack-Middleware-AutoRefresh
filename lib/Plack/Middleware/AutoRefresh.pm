@@ -29,6 +29,8 @@ sub new {
     my $class = shift;
     my $self  = $class->SUPER::new(@_);
 
+    warn "autorefresh: new\n";
+
     die "can't file dir: $html_dir" unless -d $html_dir;
     $self->{watcher} = AnyEvent::Filesys::Notify->new(
         dirs => [$html_dir],
@@ -49,6 +51,8 @@ sub new {
 sub call {
     my ( $self, $env ) = @_;
 
+    warn "autorefresh: call\n";
+
     # Looking for updates on changed files
     if ( $env->{PATH_INFO} =~ m{^/_plackAutoRefresh} ) {
         print STDERR "_plackAutoRefresh\n";
@@ -59,6 +63,8 @@ sub call {
 
     # Wants something from the real app. Give it w/ our script insert.
     my $res = $self->app->(@_);
+    # warn "res: ", pp($res), "\n";
+
     $self->response_cb(
         $res,
         sub {
@@ -66,10 +72,10 @@ sub call {
             my $content = $res->[2];
             my %headers = @{ $res->[1] };
 
-            if ( $headers{'Content-Type'} eq 'text/html'
-                and ref($content) eq 'GLOB' )
-            {
-                my $content_str = do { local $/; <$content>; };
+            if ( $headers{'Content-Type'} eq 'text/html' ) {
+                my $content_str = 
+                    ref($content) eq 'GLOB' ? do { local $/; <$content>; } :
+                    join "\n", @$content;
                 my $insert = $self->insert;
                 $content_str =~ s{<head>}{<head>$insert};
                 $res->[2] = [$content_str];
