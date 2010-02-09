@@ -6,7 +6,7 @@ use parent qw( Plack::Middleware );
 our $VERSION = '0.01';
 
 use Plack::Util;
-# use Plack::Util::Accessor qw( changed );
+use Plack::Util::Accessor qw( dir );
 
 # TODO: should timeout and try again after x seconds
 # TODO: configuration!!!
@@ -23,17 +23,14 @@ my $insert =
     '<script>'
   . read_file("js/plackAutoRefresh.js")
   . '</script>';
-my $html_dir = 'html';
 
-sub new {
-    my $class = shift;
-    my $self  = $class->SUPER::new(@_);
+sub prepare_app {
+    my $self = shift;
 
     warn "autorefresh: new\n";
 
-    die "can't file dir: $html_dir" unless -d $html_dir;
     $self->{watcher} = AnyEvent::Filesys::Notify->new(
-        dirs => [$html_dir],
+        dirs => [$self->dir],
         cb   => sub {
             my @events = grep { $_->path !~ /\.swp$/ } @_;
             return unless @events;
@@ -44,8 +41,6 @@ sub new {
     );
 
     $self->{condvars} = [];
-
-    return $self;
 }
 
 sub call {
@@ -56,32 +51,34 @@ sub call {
     # Looking for updates on changed files
     if ( $env->{PATH_INFO} =~ m{^/_plackAutoRefresh} ) {
         print STDERR "_plackAutoRefresh\n";
-        my $condvar = AnyEvent->condvar;
-        push @{ $self->{condvars} }, $condvar;
-        return $condvar;
+        my $cv = AE::cv;
+        push @{$self->{condvars}}, $cv;
+        return sub {
+            my $respond = shift;
+            $cv->cb(sub { $respond->($_[0]->recv) });
+        };
     }
 
     # Wants something from the real app. Give it w/ our script insert.
-    my $res = $self->app->(@_);
+    my $res = $self->app->($env);
     # warn "res: ", pp($res), "\n";
 
     $self->response_cb(
         $res,
         sub {
-            my $res     = shift;
-            my $content = $res->[2];
-            my %headers = @{ $res->[1] };
+            my $res = shift;
+            my $ct = Plack::Util::header_get($res->[1], 'Content-Type');
 
-            if ( $headers{'Content-Type'} eq 'text/html' ) {
-                my $content_str = 
-                    ref($content) eq 'GLOB' ? do { local $/; <$content>; } :
-                    join "\n", @$content;
-                my $insert = $self->insert;
-                $content_str =~ s{<head>}{<head>$insert};
-                $res->[2] = [$content_str];
+            if ($ct =~ m!^(?:text/html|application/xhtml\+xml)!) {
+                return sub {
+                    my $chunk = shift;
+                    return unless defined $chunk;
+                    $chunk =~ s{<head>}{"<head>" . $self->insert}ei;
+                    $chunk;
+                }
             }
-            return $res;
-        } );
+        }
+    );
 }
 
 sub insert {
