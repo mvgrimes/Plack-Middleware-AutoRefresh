@@ -4,7 +4,6 @@ use strict;
 use warnings;
 use lib './lib';
 use Plack::Builder;
-use File::Slurp;
 
 my $app = sub {
     return [
@@ -14,9 +13,10 @@ my $app = sub {
 
 builder {
     enable "Plack::Middleware::AutoRefresh",
-      dirs   => ['html'],
+      dirs   => ['./samples/html'],
       # filter => sub { shift =~ /index/ };
       filter => qr/.swp|.bak/;
+
     enable "Plack::Middleware::Static", path => sub { 1 }, root => 'html';
     $app;
 }

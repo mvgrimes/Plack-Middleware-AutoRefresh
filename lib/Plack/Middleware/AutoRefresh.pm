@@ -3,71 +3,72 @@ use strict;
 use warnings;
 use parent qw( Plack::Middleware );
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 use Plack::Util;
-use Plack::Util::Accessor qw( dirs filter );
-
-# TODO: should timeout and try again after x seconds
-# TODO: configuration!!!
-# TODO: clean up the code
-# TODO: what about with -restart
-# TODO: move to its own distribution
+use Plack::Util::Accessor qw( dirs filter wait );
 
 use AnyEvent;
 use AnyEvent::Filesys::Notify;
-use Data::Dump qw(pp dd);
 use JSON::Any;
 use File::Slurp;
+use File::ShareDir qw(dist_file);
+use File::Basename;
+use Carp;
 
-my $insert = '<script>'
-  . read_file("$ENV{HOME}/src/plack-autorefresh/js/plackAutoRefresh.js")
-
-  # . read_file("js/plackAutoRefresh.js")
-  . '</script>';
+use constant {
+    URL    => '/_plackAutoRefresh',
+    JS     => 'js/plackAutoRefresh.min.js',
+    JS_DEV => 'js/plackAutoRefresh.js',
+};
 
 sub prepare_app {
     my $self = shift;
 
-    warn "autorefresh: prepare_app\n";
+    # Setup config params: filter, wait, dirs
 
-    my $filter =
-      $self->filter
-      ? (
-        ref $self->filter eq 'CODE'
-        ? $self->filter
-        : sub { $_[0] !~ $self->filter } )
-      : sub { 1 };
+    $self->{filter} ||= sub { $_[0] !~ qr/\.(swp|bak)$/ };
+    $self->{filter} = sub { $_[0] !~ $self->filter }
+      if ref( $self->filter ) eq 'Regexp';
+    croak "AutoRefresh: filter must be a regex or code ref"
+      unless ref( $self->filter ) eq 'CODE';
 
-    ## TODO: warn the user if none of the dirs exists
+    $self->{wait} ||= 5;
 
+    $self->{dirs} ||= ['.'];
+    -d $_ or carp "AutoRefresh: can't find directory $_" for @{ $self->dirs };
+
+    # Create the filesystem watcher
     $self->{watcher} = AnyEvent::Filesys::Notify->new(
-        dirs => $self->dirs || ['.'],
-        cb => sub {
-            my @events = grep { $filter->( $_->path ) } @_;
+        dirs     => $self->dirs,
+        interval => 0.5,
+        cb       => sub {
+            my @events = grep { $self->filter->( $_->path ) } @_;
             return unless @events;
 
             warn "detected change: ", substr( $_->path, -70 ), "\n" for @events;
-            $self->file_change_event_handler(@events);
+            $self->_file_change_event_handler(@events);
         },
     );
 
-    $self->{condvars} = [];
-    $self->{load_time} = time;
+    # Setup an array to hold the condition vars, record the load time as
+    # the last change to deal with restarts, and get the raw js script
+    $self->{condvars}    = [];
+    $self->{last_change} = time;
+    $self->{_script}     = $self->_get_script;
+
 }
 
 sub call {
     my ( $self, $env ) = @_;
 
-    warn "autorefresh: call\n";
-
-    # Looking for updates on changed files
+    # Client is looking for changed files
     if ( $env->{PATH_INFO} =~ m{^/_plackAutoRefresh(?:/(\d+))?} ) {
-        warn "autorefresh: requested ", $env->{PATH_INFO}, "\n";
-        warn "autorefresh: time $1\n";
-        if ( defined $1 && $1 < $self->{load_time} ) {
-            return $self->respond(
-                { reload => 1, changed => $self->{load_time} } );
+
+        # If a change has already happened return immediately,
+        # otherwise make the browser block while we wait for change events
+        if ( defined $1 && $1 < $self->{last_change} ) {
+            return $self->_respond( { changed => $self->{last_change} } );
         } else {
             my $cv = AE::cv;
             push @{ $self->{condvars} }, $cv;
@@ -78,9 +79,9 @@ sub call {
         }
     }
 
-    # Wants something from the real app. Give it w/ our script insert.
+    # Client wants something from the real app.
+    # Insert our script if it is an html file
     my $res = $self->app->($env);
-    ## warn "res: ", pp($res), "\n";
     $self->response_cb(
         $res,
         sub {
@@ -91,49 +92,66 @@ sub call {
                 return sub {
                     my $chunk = shift;
                     return unless defined $chunk;
-                    $chunk =~ s{<head>}{"<head>" . $self->insert}ei;
+                    $chunk =~ s{<head>}{'<head>' . $self->_insert}ei;
                     $chunk;
                   }
             }
         } );
 }
 
-sub insert {
+# Return the js script updating the time and adding config params
+sub _insert {
     my ($self) = @_;
 
-    # TODO: get from config
     my %var = (
-        wait => 5 * 1000,
-        host => '/_plackAutoRefresh',
+        wait => $self->wait * 1000,
+        url  => URL,
         now  => time,
     );
 
-    my $insert_js = $insert;
-    $insert_js =~ s/{{([^}]*)}}/@{[ $var{$1} ]}/g;
-
-    return $insert_js;
+    ( my $script = $self->{_script} ) =~ s/{{([^}]*)}}/$var{$1}/eg;
+    return $script;
 }
 
-sub file_change_event_handler {
+# AFN saw a change, respond to each blocked client
+sub _file_change_event_handler {
     my $self = shift;
 
-    my $now = time;
+    my $now = $self->{last_change} = time;
     warn "file_change_event_handler: changed: $now\n";
     while ( my $condvar = shift @{ $self->{condvars} } ) {
-        $condvar->send( $self->respond( { changed => $now } ) );
+        $condvar->send( $self->_respond( { changed => $now } ) );
     }
 }
 
-sub respond {
+# Generate the plack response and encode any arguments as json
+sub _respond {
     my ( $self, $resp ) = @_;
-
-    # TODO: check that resp is a hash ref
-    exists $resp->{$_} or $resp->{$_} = 0 for qw(reload changed);
+    ## TODO: check that resp is a hash ref
 
     return [
         200,
         [ 'Content-Type' => 'application/json' ],
         [ JSON::Any->new->encode($resp) ] ];
+}
+
+# Return the js script from ShareDir unless we are developing/testing PMA.
+# This is a bit hack-ish
+sub _get_script {
+    my $self = shift;
+
+    my $dev_js_file =
+      File::Spec->catfile( dirname( $INC{'Plack/Middleware/AutoRefresh.pm'} ),
+        qw( .. .. .. share ), JS_DEV );
+
+    my $is_dev_mode = -e $dev_js_file;
+
+    my $script =
+        $is_dev_mode
+      ? $dev_js_file
+      : dist_file( 'Plack-Middleware-AutoRefresh', JS );
+
+    return '<script>' . read_file($script) . '</script>';
 }
 
 1;
