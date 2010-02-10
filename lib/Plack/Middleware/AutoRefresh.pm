@@ -47,7 +47,7 @@ sub prepare_app {
             return unless @events;
 
             warn "detected change: ", substr( $_->path, -70 ), "\n" for @events;
-            $self->_file_change_event_handler(@events);
+            $self->_change_handler(@events);
         },
     );
 
@@ -114,11 +114,10 @@ sub _insert {
 }
 
 # AFN saw a change, respond to each blocked client
-sub _file_change_event_handler {
+sub _change_handler {
     my $self = shift;
 
     my $now = $self->{last_change} = time;
-    warn "file_change_event_handler: changed: $now\n";
     while ( my $condvar = shift @{ $self->{condvars} } ) {
         $condvar->send( $self->_respond( { changed => $now } ) );
     }
