@@ -1,72 +1,71 @@
+// Park everything in a function to avoid poluting the global namespace
 (function(host) {
 
-// Mock console if it isn't defined
+// Mock the console if it isn't defined
 if (typeof(console) == 'undefined') {
     console = { log: function() {} }
 }
 
-var getTransport = function(){
-    try{ return new XMLHttpRequest()}                   catch(e){};
-    try{ return new ActiveXObject('Msxml2.XMLHTTP')}    catch(e){};
-    try{ return new ActiveXObject('Microsoft.XMLHTTP')} catch(e){};
-    alert("XMLHttpRequest not supported");
-};
-
+// Simple bind utility
 var bind = function( object, method ){
     return function(){
         return method.apply(object,arguments);
     };
 }
 
+// Handle ajax interaction
+// Some code taken from prototype.js (http://www.prototypejs.org/)
 var Ajax = {
     Request: function(url, opts) {
+        this.getTransport = function(){
+            try{ return new XMLHttpRequest()}                   catch(e){};
+            try{ return new ActiveXObject('Msxml2.XMLHTTP')}    catch(e){};
+            try{ return new ActiveXObject('Microsoft.XMLHTTP')} catch(e){};
+            alert("XMLHttpRequest not supported");
+        };
+
         this.opts = opts;
-        this.transport = getTransport();
+        this.transport = this.getTransport();
 
         this.timeout = setTimeout( bind( this, function(){
-                console.log('timeout');
                 this.transport.abort();
             } ), this.opts.wait );
 
-        console.log( 'get' );
         this.transport.open( 'get', url, true );
         this.transport.onreadystatechange =
             bind( this, function(){
                 if( this.transport.readyState != 4 ) { return }
                 clearTimeout( this.timeout );
                 if( this.transport.status != 200 ){
-                    this.opts.onFailure( this.transport );
+                    this.opts.onFailure && this.opts.onFailure( this.transport );
                 } else {
-                    this.opts.onSuccess( this.transport );
+                    this.opts.onSuccess && this.opts.onSuccess( this.transport );
                 }
             } );
         this.transport.send(null);
     }
 };
 
-
+// Primary routine to check for changes to source files and reload
+// the page if there is a change
 var check =  function(wait){
     var start = +"{{now}}";
     new Ajax.Request( host, {
         wait: wait,
         onSuccess: function(transport) {
-            console.log('onSuccess');
-            console.log( transport.responseText );
 
+            // Server will return json as the body 
+            // Changed is the only currently supported entity
             var json = JSON && JSON.parse(transport.responseText)
                          || eval('('+transport.responseText+')');
-            console.log( json );
 
             if( json.changed > start ){
-                console.log( 'reload' );
                 location.reload(false);        
             } else {
-                console.log( 'dont reload' );
                 setTimeout( function(){ check(wait) }, 1500 );
             }
         },
         onFailure: function(transport) {
-            console.log('onFailure');
             setTimeout( function(){ check(wait) }, 1500 );
         }
       });
@@ -78,3 +77,5 @@ window['-plackAutoRefresh-'] ||
     (window['-plackAutoRefresh-'] = 1) && check(+"{{wait}}");
 
 })("{{url}}/{{now}}")
+
+// vim: ts=4 sw=4 expandtab:
