@@ -46,7 +46,7 @@ sub prepare_app {
             my @events = grep { $self->filter->( $_->path ) } @_;
             return unless @events;
 
-            warn "detected change: ", substr( $_->path, -70 ), "\n" for @events;
+            warn "detected change: ", substr( $_->path, -60 ), "\n" for @events;
             $self->_change_handler(@events);
         },
     );
