@@ -15,12 +15,11 @@ use File::Slurp;
 use File::ShareDir qw(dist_file);
 use File::Basename;
 use Carp;
+use Readonly;
 
-use constant {
-    URL    => '/_plackAutoRefresh',
-    JS     => 'js/plackAutoRefresh.min.js',
-    JS_DEV => 'js/plackAutoRefresh.js',
-};
+Readonly my $URL    => '/_plackAutoRefresh';
+Readonly my $JS     => 'js/plackAutoRefresh.min.js';
+Readonly my $JS_DEV => 'js/plackAutoRefresh.js';
 
 sub prepare_app {
     my $self = shift;
@@ -57,6 +56,7 @@ sub prepare_app {
     $self->{last_change} = time;
     $self->{_script}     = $self->_get_script;
 
+    return;
 }
 
 sub call {
@@ -81,9 +81,9 @@ sub call {
 
     # Client wants something from the real app.
     # Insert our script if it is an html file
-    my $res = $self->app->($env);
-    $self->response_cb(
-        $res,
+    my $response = $self->app->($env);
+    return $self->response_cb(
+        $response,
         sub {
             my $res = shift;
             my $ct = Plack::Util::header_get( $res->[1], 'Content-Type' );
@@ -105,7 +105,7 @@ sub _insert {
 
     my %var = (
         wait => $self->wait * 1000,
-        url  => URL,
+        url  => $URL,
         now  => time,
     );
 
@@ -121,6 +121,8 @@ sub _change_handler {
     while ( my $condvar = shift @{ $self->{condvars} } ) {
         $condvar->send( $self->_respond( { changed => $now } ) );
     }
+
+    return 1;
 }
 
 # Generate the plack response and encode any arguments as json
@@ -141,14 +143,14 @@ sub _get_script {
 
     my $dev_js_file =
       File::Spec->catfile( dirname( $INC{'Plack/Middleware/AutoRefresh.pm'} ),
-        qw( .. .. .. share ), JS_DEV );
+        qw( .. .. .. share ), $JS_DEV );
 
     my $is_dev_mode = -e $dev_js_file;
 
     my $script =
         $is_dev_mode
       ? $dev_js_file
-      : dist_file( 'Plack-Middleware-AutoRefresh', JS );
+      : dist_file( 'Plack-Middleware-AutoRefresh', $JS );
 
     return '<script>' . read_file($script) . '</script>';
 }

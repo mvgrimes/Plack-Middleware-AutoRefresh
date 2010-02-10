@@ -14,7 +14,7 @@ my $build = Module::Build->new(
         'File::ShareDir'            => 0,
         'JSON::Any'                 => 0,
         'Carp'                      => 0,
-
+        'Readonly'                  => 0,
     },
     build_requires     => {},
     configure_requires => { 'Module::Build' => '0.36', },
