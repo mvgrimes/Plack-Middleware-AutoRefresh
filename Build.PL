@@ -11,6 +11,7 @@ my $build = Module::Build->new(
         'AnyEvent::Filesys::Notify' => 0,
         'Data::Dump'                => 0,
         'File::Slurp'               => 0,
+        'JSON::Any'                 => 0,
 
     },
     build_requires => {},
