@@ -11,13 +11,17 @@ my $app = sub {
         ['Not found, try /index.html'] ];
 };
 
+my $root = 'samples/html';
+
 builder {
     enable "Plack::Middleware::AutoRefresh",
-      dirs   => ['./samples/html'],
-      # filter => sub { shift =~ /index/ };
+      dirs   => [$root],
       filter => qr/.swp|.bak/;
+    ## filter => sub { shift =~ /index/ };
 
-    enable "Plack::Middleware::Static", path => sub { 1 }, root => 'html';
+    enable "Plack::Middleware::Static",
+      path => sub { s{^/$}{index.html}; 1 },
+      root => $root;
     $app;
 }
 
