@@ -62,6 +62,10 @@ sub prepare_app {
 sub call {
     my ( $self, $env ) = @_;
 
+    carp "AutoRefresh middleware doesn't work if psgi.nonblocking is false.\n",
+      "Servers that are known to work: AnyEvent and Coro\n"
+      unless $env->{'psgi.nonblocking'};
+
     # Client is looking for changed files
     if ( $env->{PATH_INFO} =~ m{^/_plackAutoRefresh(?:/(\d+))?} ) {
 
@@ -176,10 +180,15 @@ Plack::Middleware::AutoRefresh - Reload pages in browsers when files are modifie
 
 =head1 DESCRIPTION
 
-Plack::Middleware::AutoRefresh is a middleware component that will reload
-you web pages in your browser when changes are detected in the source
-files. It should work with any modern browser that supports JavaScript and
-multiple browsers simultaneously.
+Plack::Middleware::AutoRefresh is a middleware component that will
+reload you web pages in your browser when changes are detected in the
+source files. It should work with any modern browser that supports
+JavaScript and multiple browsers simultaneously.
+
+At this time, this middleware will only work with backend servers that
+set psgi.nonblocking to true. Servers that are known to work include
+L<Plack::Server::AnyEvent> and L<Plack::Server::Coro>.  You can force
+a server with the C<-s> or C<--server> flag to C<plackup>.
 
 =head1 CONFIGURATION
 
