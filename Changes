@@ -1,2 +1,5 @@
 Changes for Plack::Middleware::AutoRefresh
 
+0.05 - Thu Feb 11 08:40:08 2010
+	Initial release to cpan
+
