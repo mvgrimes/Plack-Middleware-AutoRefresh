@@ -1,0 +1,10 @@
+^MYMETA.yml$
+^Build$
+^bin/
+^_build/
+^blib/
+^\.git/
+\.swp$
+\.bak$
+^\.gitignore$
+^\.releaserc$
