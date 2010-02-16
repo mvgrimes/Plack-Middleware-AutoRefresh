@@ -1,0 +1,20 @@
+vlc:
+
+File->Adv File Open
+File tab:
+screen:// :screen-fps=5 :dshow-fps=29.9001 :nooverlay
+(or :dsow-fps=35 to slow down)
+Check Streaming/Saving
+Click Settings
+Fill in filename (/w .flv)
+Encapsulation: mp4
+Video:
+  type: h264
+  bitrate: 512
+  scale: 0.75
+ Go
+
+ Alternatives:
+ http://www.screencast-o-matic.com/
+ jingproject.com
+ http://danicsoft.com/software/copernicus/

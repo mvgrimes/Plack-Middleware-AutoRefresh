@@ -16,6 +16,7 @@ my $build = Module::Build->new(
         'Carp'                      => 0,
         'Readonly'                  => 0,
     },
+    script_files       => [], 
     build_requires     => {},
     configure_requires => { 'Module::Build' => '0.36', },
     share_dir          => 'share',

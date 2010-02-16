@@ -3,7 +3,7 @@ use strict;
 use warnings;
 use parent qw( Plack::Middleware );
 
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 
 use Plack::Util;
 use Plack::Util::Accessor qw( dirs filter wait );
