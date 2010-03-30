@@ -3,7 +3,7 @@ use strict;
 use warnings;
 use parent qw( Plack::Middleware );
 
-our $VERSION = '0.06';
+our $VERSION = '0.07';
 
 use Plack::Util;
 use Plack::Util::Accessor qw( dirs filter wait );
@@ -145,16 +145,12 @@ sub _respond {
 sub _get_script {
     my $self = shift;
 
-    my $dev_js_file =
+    my $script =
       File::Spec->catfile( dirname( $INC{'Plack/Middleware/AutoRefresh.pm'} ),
         qw( .. .. .. share ), $JS_DEV );
 
-    my $is_dev_mode = -e $dev_js_file;
-
-    my $script =
-        $is_dev_mode
-      ? $dev_js_file
-      : dist_file( 'Plack-Middleware-AutoRefresh', $JS );
+    $script = dist_file( 'Plack-Middleware-AutoRefresh', $JS )
+        unless -r $script;
 
     return '<script>' . read_file($script) . '</script>';
 }
