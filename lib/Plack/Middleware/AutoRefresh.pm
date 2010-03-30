@@ -3,7 +3,7 @@ use strict;
 use warnings;
 use parent qw( Plack::Middleware );
 
-our $VERSION = '0.07';
+our $VERSION = '0.08';
 
 use Plack::Util;
 use Plack::Util::Accessor qw( dirs filter wait );
@@ -50,9 +50,9 @@ sub prepare_app {
         },
     );
 
-    # Setup an array to hold the condition vars, record the load time as
+    # Setup an hash to hold the condition vars, record the load time as
     # the last change to deal with restarts, and get the raw js script
-    $self->{condvars}    = [];
+    $self->{condvars}    = {};
     $self->{last_change} = time;
     $self->{_script}     = $self->_get_script;
 
@@ -67,15 +67,29 @@ sub call {
       unless $env->{'psgi.nonblocking'};
 
     # Client is looking for changed files
-    if ( $env->{PATH_INFO} =~ m{^/_plackAutoRefresh(?:/(\d+))?} ) {
+    if ( $env->{PATH_INFO} =~ m{^/_plackAutoRefresh(?:/(\d+)/(\d+))?} ) {
+        my ( $uid, $timestamp ) = ( $1, $2 );
 
         # If a change has already happened return immediately,
         # otherwise make the browser block while we wait for change events
-        if ( defined $1 && $1 < $self->{last_change} ) {
+        if ( defined $timestamp && $timestamp < $self->{last_change} ) {
             return $self->_respond( { changed => $self->{last_change} } );
         } else {
+
+            # Unblock any connections with the same uid.
+            # This should close the tcp session to avoid using up
+            # all the tcp ports. RT#56119
+            if ( my $old_connection = $self->{condvars}->{$uid} ) {
+                # The connection has already been dropped by the
+                # client, so it doesn't matter what we return.
+                $old_connection->send( [ 500, [], [] ] );
+            }
+
+            # Add this connection to the list
             my $cv = AE::cv;
-            push @{ $self->{condvars} }, $cv;
+            $self->{condvars}->{$uid} = $cv;
+
+            # Finish up
             return sub {
                 my $respond = shift;
                 $cv->cb( sub { $respond->( $_[0]->recv ) } );
@@ -110,6 +124,7 @@ sub _insert {
     my %var = (
         wait => $self->wait * 1000,
         url  => $URL,
+        uid  => $self->_uid,
         now  => time,
     );
 
@@ -117,12 +132,18 @@ sub _insert {
     return $script;
 }
 
+sub _uid {
+    my $self = shift;
+    return ++$self->{_uid};
+}
+
 # AFN saw a change, respond to each blocked client
 sub _change_handler {
     my $self = shift;
 
     my $now = $self->{last_change} = time;
-    while ( my $condvar = shift @{ $self->{condvars} } ) {
+    for my $uid ( keys %{ $self->{condvars} } ) {
+        my $condvar = delete $self->{condvars}->{$uid};
         $condvar->send( $self->_respond( { changed => $now } ) );
     }
 
@@ -150,7 +171,7 @@ sub _get_script {
         qw( .. .. .. share ), $JS_DEV );
 
     $script = dist_file( 'Plack-Middleware-AutoRefresh', $JS )
-        unless -r $script;
+      unless -r $script;
 
     return '<script>' . read_file($script) . '</script>';
 }

@@ -56,14 +56,20 @@ var check =  function(wait){
 
             // Server will return json as the body 
             // Changed is the only currently supported entity
-            var json = JSON && JSON.parse(transport.responseText)
+            try { 
+                var json = JSON && JSON.parse(transport.responseText)
                          || eval('('+transport.responseText+')');
 
-            if( json.changed > start ){
-                location.reload(false);        
-            } else {
-                setTimeout( function(){ check(wait) }, 1500 );
-            }
+                if( json.changed > start ){
+                    location.reload(true);   // never returns
+                }
+            } catch(e) { }
+
+            // If we got here, either their was an exception in the try
+            // or the json.changed <= start
+            // Either way, queue another check
+            setTimeout( function(){ check(wait) }, 1500 );
+
         },
         onFailure: function(transport) {
             setTimeout( function(){ check(wait) }, 1500 );
@@ -76,6 +82,6 @@ var check =  function(wait){
 window['-plackAutoRefresh-'] ||
     (window['-plackAutoRefresh-'] = 1) && check(+"{{wait}}");
 
-})("{{url}}/{{now}}")
+})("{{url}}/{{uid}}/{{now}}")
 
 // vim: ts=4 sw=4 expandtab:
