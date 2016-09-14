@@ -1,0 +1,14 @@
+{
+   "name" : "Plack-Middleware-AutoRefresh",
+   "resources" : {
+      "repository" : {
+         "web" : "http://github.com/mvgrimes/Plack-Middleware-AutoRefresh",
+         "url" : "http://github.com/mvgrimes/Plack-Middleware-AutoRefresh.git",
+         "type" : "git"
+      },
+      "bugtracker" : {
+         "web" : "http://github.com/mvgrimes/Plack-Middleware-AutoRefresh/issues"
+      }
+   },
+   "x_contributors" : [ ]
+}

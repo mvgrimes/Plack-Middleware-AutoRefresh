@@ -1,9 +1,12 @@
 package Plack::Middleware::AutoRefresh;
+
+# ABSTRACT: Reload pages in browsers when files are modified
+
 use strict;
 use warnings;
 use parent qw( Plack::Middleware );
 
-our $VERSION = '0.08';
+our $VERSION = '0.09';
 
 use Plack::Util;
 use Plack::Util::Accessor qw( dirs filter wait );
@@ -180,9 +183,20 @@ sub _get_script {
 
 __END__
 
+=pod
+
 =head1 NAME
 
 Plack::Middleware::AutoRefresh - Reload pages in browsers when files are modified
+
+=head1 VERSION
+
+version 0.09
+
+=head1 STATUS
+
+=for html <a href="https://travis-ci.org/mvgrimes/Plack-Middleware-AutoRefresh"><img src="https://travis-ci.org/mvgrimes/Plack-Middleware-AutoRefresh.svg?branch=master" alt="Build Status"></a>
+<a href="https://metacpan.org/pod/Plack::Middleware::AutoRefresh"><img alt="CPAN version" src="https://badge.fury.io/pl/Plack-Middleware-AutoRefresh.svg" /></a>
 
 =head1 SYNOPSIS
 
@@ -219,7 +233,7 @@ new files, deleted files, new directories and deleted directories.
     filter => qr/\.(swp|bak)$/           # default
     filter => qr/\.(svn|git)$/
     filter => sub { shift =~ /\.html$/ }
-    
+
 Will apply the specified filter to the changed path name. This can be
 a regular expression or a code ref. Any paths that match the regular
 expression will be ignored. A code ref will be passed the path as the
@@ -267,20 +281,27 @@ Modules used to implement this module L<AnyEvent::Filesys::Notify>.
 
 And of course, L<Plack>.
 
-=head1 BUGS
-
-Please report any bugs or suggestions at L<http://rt.cpan.org/>
-
 =head1 AUTHOR
 
 Mark Grimes, E<lt>mgrimes@cpan.orgE<gt>
 
+=head1 SOURCE
+
+Source repository is at L<https://github.com/mvgrimes/Plack-Middleware-AutoRefresh>.
+
+=head1 BUGS
+
+Please report any bugs or feature requests on the bugtracker website L<http://github.com/mvgrimes/Plack-Middleware-AutoRefresh/issues>
+
+When submitting a bug or request, please include a test-file or a
+patch to an existing test-file that illustrates the bug or desired
+feature.
+
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2010 by Mark Grimes
+This software is copyright (c) 2016 by Mark Grimes, E<lt>mgrimes@cpan.orgE<gt>.
 
-This library is free software; you can redistribute it and/or modify
-it under the same terms as Perl itself, either Perl version 5.8.2 or,
-at your option, any later version of Perl 5 you may have available.
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
 
 =cut
