@@ -128,7 +128,7 @@ sub _insert {
         now  => time,
     );
 
-    ( my $script = $self->{_script} ) =~ s/{{([^}]*)}}/$var{$1}/eg;
+    ( my $script = $self->{_script} ) =~ s/\{\{([^}]*)}}/$var{$1}/eg;
     return $script;
 }
 
