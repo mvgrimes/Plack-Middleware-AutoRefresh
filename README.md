@@ -4,7 +4,14 @@ Plack::Middleware::AutoRefresh - Reload pages in browsers when files are modifie
 
 # VERSION
 
-version 0.08
+version 0.09
+
+# STATUS
+
+<div>
+    <a href="https://travis-ci.org/mvgrimes/Plack-Middleware-AutoRefresh"><img src="https://travis-ci.org/mvgrimes/Plack-Middleware-AutoRefresh.svg?branch=master" alt="Build Status"></a>
+    <a href="https://metacpan.org/pod/Plack::Middleware::AutoRefresh"><img alt="CPAN version" src="https://badge.fury.io/pl/Plack-Middleware-AutoRefresh.svg" /></a>
+</div>
 
 # SYNOPSIS
 

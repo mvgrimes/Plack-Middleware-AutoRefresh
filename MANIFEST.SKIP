@@ -5,6 +5,7 @@
 \.swp$
 \.bak$
 \.git/
+\.DS_Store
 
 ^MANIFEST\.(?i:skip)$
 t.pl
@@ -22,12 +23,13 @@ tmp/
 ^local/
 ^\.local-v.*
 ^\.travis.yml
-^.plenv-version$
+^.perl-version$
 metamerge.json
 metamerge.yml
 README.md
 
 # Distribution specific
+Plack-Middleware-AutoRefresh-[\d.]+
 Plack-Middleware-AutoRefresh-[\d.]+.tar
 Plack-Middleware-AutoRefresh-[\d.]+.tar.gz
 screencast
